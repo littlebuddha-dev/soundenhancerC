@@ -1,14 +1,31 @@
 {
   "bbe": {
+    "enabled": true,
     "crossover_freq_low": 150.0,
     "crossover_freq_high": 2500.0,
     "low_band_delay_ms": 1.5,
     "low_boost_db": 1.6,
-    "high_boost_db": 5.0
+    "high_boost_db": 0
   },
   "exciter": {
-    "crossover_freq": 4000.0,
-    "drive": 1.07,
-    "mix": 0.25
+    "enabled": true,
+    "crossover_freq": 6500.0,
+    "drive": 7.0,
+    "mix": 0.5,
+    "even_drive": 2.0
+  },
+  "peq": {
+    "enabled": true,
+    "freq": 25000.0,
+    "gain_db": 6.0,
+    "q": 1.8
+  },
+  "comments": {
+    "changes": [
+      "Exciterのdriveを9.0→7.0に減少（中域への影響軽減）",
+      "Exciterのmixを0.7→0.5に減少（効果の調整）",
+      "高域EQのgainを9.0→6.0に減少（バランス調整）",
+      "コード内で中域補正EQを追加：2kHz(+6dB), 4kHz(+4dB), 8kHz(+3dB), 16kHz(+2dB)"
+    ]
   }
 }
