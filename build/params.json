@@ -1,0 +1,14 @@
+{
+  "bbe": {
+    "crossover_freq_low": 150.0,
+    "crossover_freq_high": 2500.0,
+    "low_band_delay_ms": 1.5,
+    "low_boost_db": 1.6,
+    "high_boost_db": 5.0
+  },
+  "exciter": {
+    "crossover_freq": 4000.0,
+    "drive": 1.07,
+    "mix": 0.25
+  }
+}
