@@ -656,9 +656,31 @@ int main(int argc, char *argv[]) {
     }
     
     std::string input_filename = argv[1];
-    std::string base_filename = input_filename.substr(0, input_filename.rfind('.'));
+    
+    SF_INFO sfinfo_in;
+    SNDFILE* infile = sf_open(input_filename.c_str(), SFM_READ, &sfinfo_in);
+    if (!infile) {
+        std::cerr << "Error: Could not open input file: " << sf_strerror(nullptr) << std::endl; 
+        return 1;
+    }
+
+    size_t dot_pos = input_filename.rfind('.');
+    std::string base_filename = (dot_pos == std::string::npos) ? input_filename : input_filename.substr(0, dot_pos);
+    
+    std::string output_ext;
+    int final_format_type;
+
+    if ((sfinfo_in.format & SF_FORMAT_TYPEMASK) == SF_FORMAT_MPEG) {
+        std::cout << "Input is an MPEG file (like MP3). To avoid quality loss from re-compression, the output will be saved in WAV format." << std::endl;
+        output_ext = ".wav";
+        final_format_type = SF_FORMAT_WAV;
+    } else {
+        output_ext = (dot_pos == std::string::npos) ? ".wav" : input_filename.substr(dot_pos);
+        final_format_type = (sfinfo_in.format & SF_FORMAT_TYPEMASK);
+    }
+    
     std::string tmp_filename = base_filename + "_tmp.wav";
-    std::string final_filename = base_filename + "_final.wav";
+    std::string final_filename = base_filename + "_final" + output_ext;
     
     json params;
     std::ifstream f("params.json");
@@ -674,19 +696,6 @@ int main(int argc, char *argv[]) {
         std::cout << "Warning: params.json not found, using defaults" << std::endl;
     }
     
-    SF_INFO sfinfo_in;
-    SNDFILE* infile = sf_open(input_filename.c_str(), SFM_READ, &sfinfo_in);
-    if (!infile) {
-        std::cerr << "Error: Could not open input file." << std::endl; 
-        return 1;
-    }
-
-    if ((sfinfo_in.format & SF_FORMAT_TYPEMASK) != SF_FORMAT_WAV) {
-        std::cerr << "Error: This program only supports WAV files." << std::endl;
-        sf_close(infile); 
-        return 1;
-    }
-
     const int TMP_SR = 192000;
     const int FINAL_SR = 96000;
     const size_t BUF_SIZE = 8192;
@@ -836,12 +845,12 @@ int main(int argc, char *argv[]) {
         }
 
         // 最終出力（高品質ダウンサンプリング）
-        SF_INFO sfinfo_final = sfinfo_tmp;
+        SF_INFO sfinfo_final = sfinfo_in;
         sfinfo_final.samplerate = FINAL_SR;
-        sfinfo_final.format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;  // 24-bit出力
+        sfinfo_final.format = final_format_type | SF_FORMAT_PCM_24;
         SNDFILE* final_outfile = sf_open(final_filename.c_str(), SFM_WRITE, &sfinfo_final);
         if (!final_outfile) { 
-            throw std::runtime_error("Could not create final output file."); 
+            throw std::runtime_error("Could not create final output file. The output format might not be supported for writing."); 
         }
         
         std::cout << "High-quality downsampling to " << FINAL_SR << "Hz..." << std::endl;
@@ -855,7 +864,7 @@ int main(int argc, char *argv[]) {
         // 最終統計
         std::cout << "\n=== Processing Complete ===" << std::endl;
         std::cout << "Output: " << final_filename << std::endl;
-        std::cout << "Format: 24-bit WAV @ " << FINAL_SR << "Hz" << std::endl;
+        std::cout << "Format: 24-bit PCM @ " << FINAL_SR << "Hz" << std::endl;
         std::cout << "Dynamic Range: " << std::fixed << std::setprecision(1) << 
             (20.0 * std::log10(max_peak) - 20.0 * std::log10(rms_level)) << "dB" << std::endl;
         
