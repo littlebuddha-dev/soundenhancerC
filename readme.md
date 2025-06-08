@@ -1,4 +1,4 @@
-This program is written in C++ to multiply BBE and exciter to wav files.
+This program is written in C++ to multiply exciter to wav files.
 
 $ brew install libsndfile
 $  brew install nlohmann-json
