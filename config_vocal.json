@@ -1,0 +1,83 @@
+{
+    "spectral_gate": {
+        "enabled": true,
+        "threshold_db": -45.0,
+        "attack_ms": 3.0,
+        "release_ms": 150.0
+    },
+    "multiband_comp": {
+        "enabled": true,
+        "bands": [
+            {
+                "freq_low": 20.0,
+                "freq_high": 200.0,
+                "threshold_db": -20.0,
+                "ratio": 3.0,
+                "attack_ms": 15.0,
+                "release_ms": 100.0,
+                "makeup_gain_db": 0.5,
+                "enabled": true
+            },
+            {
+                "freq_low": 200.0,
+                "freq_high": 2000.0,
+                "threshold_db": -12.0,
+                "ratio": 2.2,
+                "attack_ms": 5.0,
+                "release_ms": 60.0,
+                "makeup_gain_db": 2.0,
+                "enabled": true
+            },
+            {
+                "freq_low": 2000.0,
+                "freq_high": 8000.0,
+                "threshold_db": -8.0,
+                "ratio": 1.8,
+                "attack_ms": 2.0,
+                "release_ms": 40.0,
+                "makeup_gain_db": 3.0,
+                "enabled": true
+            },
+            {
+                "freq_low": 8000.0,
+                "freq_high": 20000.0,
+                "threshold_db": -6.0,
+                "ratio": 1.5,
+                "attack_ms": 1.0,
+                "release_ms": 30.0,
+                "makeup_gain_db": 2.5,
+                "enabled": true
+            }
+        ]
+    },
+    "analog_saturation": {
+        "enabled": true,
+        "drive": 0.6,
+        "mix": 0.1,
+        "type": "tube"
+    },
+    "harmonic_enhancer": {
+        "enabled": true,
+        "drive": 0.6,
+        "even_harmonics": 0.15,
+        "odd_harmonics": 0.3,
+        "mix": 0.3,
+        "freq_low": 150.0,
+        "freq_high": 12000.0
+    },
+    "stereo_enhancer": {
+        "enabled": true,
+        "width": 1.05,
+        "bass_mono_freq": 200.0
+    },
+    "reverb": {
+        "enabled": true,
+        "room_size": 0.2,
+        "damping": 0.6,
+        "wet_level": 0.08
+    },
+    "final_limiter": {
+        "threshold_db": -0.3,
+        "release_ms": 30.0
+    }
+}

@@ -1,0 +1,76 @@
+{
+    "spectral_gate": {
+        "enabled": false,
+        "threshold_db": -65.0,
+        "attack_ms": 8.0,
+        "release_ms": 120.0
+    },
+    "multiband_comp": {
+        "enabled": true,
+        "bands": [
+            {
+                "name": "Bass",
+                "freq_low": 20.0,
+                "freq_high": 250.0,
+                "threshold_db": -12.0,
+                "ratio": 3.0,
+                "attack_ms": 12.0,
+                "release_ms": 150.0,
+                "makeup_gain_db": 2.0,
+                "enabled": true
+            },
+            {
+                "name": "Mid",
+                "freq_low": 250.0,
+                "freq_high": 4000.0,
+                "threshold_db": -10.0,
+                "ratio": 2.5,
+                "attack_ms": 8.0,
+                "release_ms": 100.0,
+                "makeup_gain_db": 1.5,
+                "enabled": true
+            },
+            {
+                "name": "High",
+                "freq_low": 4000.0,
+                "freq_high": 20000.0,
+                "threshold_db": -8.0,
+                "ratio": 2.0,
+                "attack_ms": 4.0,
+                "release_ms": 70.0,
+                "makeup_gain_db": 2.0,
+                "enabled": true
+            }
+        ]
+    },
+    "analog_saturation": {
+        "enabled": true,
+        "drive": 1.2,
+        "mix": 0.25,
+        "type": "tape"
+    },
+    "harmonic_enhancer": {
+        "enabled": true,
+        "drive": 0.5,
+        "even_harmonics": 0.3,
+        "odd_harmonics": 0.2,
+        "mix": 0.25,
+        "freq_low": 80.0,
+        "freq_high": 10000.0
+    },
+    "stereo_enhancer": {
+        "enabled": true,
+        "width": 1.25,
+        "bass_mono_freq": 120.0
+    },
+    "reverb": {
+        "enabled": true,
+        "room_size": 0.5,
+        "damping": 0.4,
+        "wet_level": 0.15
+    },
+    "final_limiter": {
+        "threshold_db": -0.2,
+        "release_ms": 60.0
+    }
+}

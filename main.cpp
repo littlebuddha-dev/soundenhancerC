@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <cstdio>
 #include <stdexcept>
+#include <filesystem> // Required for path manipulation
 
 // 3rd party libraries
 #include <sndfile.h>
@@ -657,6 +658,27 @@ int main(int argc, char *argv[]) {
     
     std::string input_filename = argv[1];
     
+    // --- Start of modification ---
+    // Get the path to the executable to locate params.json
+    std::filesystem::path exe_path(argv[0]);
+    std::filesystem::path params_path = exe_path.parent_path() / ".." / "params.json";
+
+    json params = json::object(); // Initialize as an empty object to prevent null access
+    std::ifstream f(params_path);
+    if (f.is_open()) {
+        try {
+            // Parse with exceptions enabled to catch syntax errors
+            params = json::parse(f, nullptr, true);
+            std::cout << "Parameters loaded from " << std::filesystem::absolute(params_path).string() << std::endl;
+        } catch (json::parse_error& e) {
+            std::cerr << "Error parsing params.json: " << e.what() << ". Using defaults." << std::endl;
+            params = json::object(); // Fallback to empty object on parse error
+        }
+    } else {
+        std::cout << "Warning: params.json not found at " << std::filesystem::absolute(params_path).string() << ", using defaults." << std::endl;
+    }
+    // --- End of modification ---
+
     SF_INFO sfinfo_in;
     SNDFILE* infile = sf_open(input_filename.c_str(), SFM_READ, &sfinfo_in);
     if (!infile) {
@@ -681,20 +703,6 @@ int main(int argc, char *argv[]) {
     
     std::string tmp_filename = base_filename + "_tmp.wav";
     std::string final_filename = base_filename + "_final" + output_ext;
-    
-    json params;
-    std::ifstream f("params.json");
-    if (f.is_open()) {
-        params = json::parse(f, nullptr, false);
-        if (params.is_discarded()) {
-             std::cerr << "Error parsing params.json. Using defaults." << std::endl;
-             params = json({});
-        } else {
-            std::cout << "Parameters loaded from params.json." << std::endl;
-        }
-    } else {
-        std::cout << "Warning: params.json not found, using defaults" << std::endl;
-    }
     
     const int TMP_SR = 192000;
     const int FINAL_SR = 96000;
@@ -727,15 +735,15 @@ int main(int argc, char *argv[]) {
         
         // プロセッサー初期化
         for (int i = 0; i < sfinfo_in.channels; ++i) {
-            exciters[i].setup(TMP_SR, params.value("exciter", json({})));
-            gloss_enhancers[i].setup(TMP_SR, params.value("gloss_enhancer", json({})));
+            exciters[i].setup(TMP_SR, params.value("exciter", json::object()));
+            gloss_enhancers[i].setup(TMP_SR, params.value("gloss_enhancer", json::object()));
         }
-        eq_processor.setup(TMP_SR, params.value("peq", json({})));
+        eq_processor.setup(TMP_SR, params.value("peq", json::object()));
         
         // 分離機能（ステレオの場合のみ）
         bool separation_enabled = false;
         if (sfinfo_in.channels == 2) {
-            json sep_params = params.value("separation", json({}));
+            json sep_params = params.value("separation", json::object());
             sep_params["enabled"] = sep_params.value("enabled", true);
             separator.setup(TMP_SR, sep_params);
             separation_enabled = sep_params.value("enabled", true);
@@ -744,7 +752,7 @@ int main(int argc, char *argv[]) {
         }
         
         // 艶エンハンサー状態表示
-        bool gloss_enabled = params.value("gloss_enhancer", json({})).value("enabled", true);
+        bool gloss_enabled = params.value("gloss_enhancer", json::object()).value("enabled", true);
         std::cout << "Premium Gloss Enhancement: " << 
             (gloss_enabled ? "Enabled" : "Disabled") << std::endl;
         
