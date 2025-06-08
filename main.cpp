@@ -111,15 +111,15 @@ public:
         enabled_ = true;
         
         // 中域の補正用EQ（複数バンド）
-        peq1_.set_peaking(sr, 2000.0, 1.2, 6.0);   // 2kHz +6dB (主要な中域補正)
-        peq2_.set_peaking(sr, 4000.0, 1.0, 4.0);   // 4kHz +4dB (プレゼンス補正)
-        peq3_.set_peaking(sr, 8000.0, 1.5, 3.0);   // 8kHz +3dB (高域中域補正)
+        peq1_.set_peaking(sr, 2000.0, 1.2, 6.0);  // 2kHz +6dB (主要な中域補正)
+        peq2_.set_peaking(sr, 4000.0, 1.0, 4.0);  // 4kHz +4dB (プレゼンス補正)
+        peq3_.set_peaking(sr, 8000.0, 1.5, 3.0);  // 8kHz +3dB (高域中域補正)
         
         // 元の高域補正
         peq4_.set_peaking(sr, p.value("freq", 22000.0), p.value("q", 1.5), p.value("gain_db", 9.0));
         
         // 追加の超高域補正（必要に応じて）
-        peq5_.set_peaking(sr, 16000.0, 2.0, 2.0);  // 16kHz +2dB
+        peq5_.set_peaking(sr, 16000.0, 2.0, 2.0); // 16kHz +2dB
     }
     
     float process(float in) {
@@ -150,29 +150,65 @@ int main(int argc, char *argv[]) {
     json params;
     std::ifstream f("params.json"); 
     if (f.is_open()) { 
-        params = json::parse(f); 
-        std::cout << "Parameters loaded from params.json" << std::endl;
+        if (f.peek() == std::ifstream::traits_type::eof()) {
+            std::cout << "Warning: params.json is empty, using defaults." << std::endl;
+        } else {
+            try {
+                params = json::parse(f); 
+                std::cout << "Parameters loaded from params.json:" << std::endl;
+                std::cout << std::setw(4) << params << std::endl;
+            } catch (json::parse_error& e) {
+                std::cerr << "Error parsing params.json: " << e.what() << std::endl;
+                std::cerr << "Please check the JSON syntax. Using default parameters." << std::endl;
+                params = json({}); 
+            }
+        }
     } else {
         std::cout << "Warning: params.json not found, using defaults" << std::endl;
     }
     
     SF_INFO sfinfo_in;
     SNDFILE* infile = sf_open(input_filename.c_str(), SFM_READ, &sfinfo_in);
-    if (!infile) { std::cerr << "Error: Could not open input file." << std::endl; return 1; }
+    if (!infile) {
+        std::cerr << "Error: Could not open input file." << std::endl;
+        std::cerr << "The file may not exist, be corrupted, or have an unsupported format." << std::endl;
+        return 1;
+    }
+
+    // --- 追加されたフォーマットチェック ---
+    // ファイルフォーマットがWAV形式であるかを確認します。
+    // SF_FORMAT_TYPEMASKでコンテナフォーマット部分のみを抽出し、SF_FORMAT_WAVと比較します。
+    if ((sfinfo_in.format & SF_FORMAT_TYPEMASK) != SF_FORMAT_WAV) {
+        std::cerr << "\n----------------------------------------" << std::endl;
+        std::cerr << "Error: Unsupported file format detected." << std::endl;
+        std::cerr << "This program only supports WAV (.wav) files." << std::endl;
+        std::cerr << "Please convert the input file to WAV format and try again." << std::endl;
+        std::cerr << "----------------------------------------" << std::endl;
+        sf_close(infile); // 開いたファイルを閉じてから終了
+        return 1;
+    }
+    // --- フォーマットチェックここまで ---
     
     SF_INFO sfinfo_out = sfinfo_in;
     sfinfo_out.samplerate *= 2; // Upsample output
     
     SNDFILE* outfile = sf_open(output_filename.c_str(), SFM_WRITE, &sfinfo_out);
-    if (!outfile) { sf_close(infile); return 1; }
+    if (!outfile) {
+        std::cerr << "Error: Could not open output file for writing." << std::endl;
+        sf_close(infile);
+        return 1;
+    }
     
     std::vector<SimpleExciterProcessor> exciters(sfinfo_in.channels);
-    std::vector<MultiParametricEQProcessor> peqs(sfinfo_in.channels);  // 改良版EQ使用
+    std::vector<MultiParametricEQProcessor> peqs(sfinfo_in.channels);
     std::vector<SimpleBiquad> resamplers(sfinfo_in.channels);
 
+    json exciter_params = params.value("exciter", json({}));
+    json peq_params = params.value("peq", json({}));
+
     for (int i = 0; i < sfinfo_in.channels; ++i) { 
-        exciters[i].setup(sfinfo_in.samplerate, params["exciter"]); 
-        peqs[i].setup(sfinfo_out.samplerate, params["peq"]); // PEQ runs at the high output sample rate
+        exciters[i].setup(sfinfo_in.samplerate, exciter_params); 
+        peqs[i].setup(sfinfo_out.samplerate, peq_params);
         resamplers[i].set_lpf(sfinfo_out.samplerate, sfinfo_in.samplerate / 2.2, 0.707);
     }
     
@@ -180,27 +216,25 @@ int main(int argc, char *argv[]) {
     std::vector<float> in_buf(BUF_SIZE * sfinfo_in.channels), out_buf(BUF_SIZE * sfinfo_in.channels * 2);
     sf_count_t frames_read, total_frames = 0;
     
-    std::cout << "Processing audio..." << std::endl;
-    std::cout << "Input: " << sfinfo_in.samplerate << "Hz, " << sfinfo_in.channels << " channels" << std::endl;
+    std::cout << "\nProcessing audio..." << std::endl;
+    std::cout << "Input: " << sfinfo_in.samplerate << "Hz, " << sfinfo_in.channels << " channels, WAV format" << std::endl;
     std::cout << "Output: " << sfinfo_out.samplerate << "Hz (upsampled)" << std::endl;
     
     while ((frames_read = sf_readf_float(infile, in_buf.data(), BUF_SIZE)) > 0) {
-        // Step 1: Process with Exciter and upsample
         for (sf_count_t i = 0; i < frames_read; ++i) {
             for (int ch = 0; ch < sfinfo_in.channels; ++ch) {
                 float sample = in_buf[i * sfinfo_in.channels + ch];
                 float processed_sample = exciters[ch].process(sample);
                 out_buf[(i * 2) * sfinfo_in.channels + ch] = processed_sample;
-                out_buf[(i * 2 + 1) * sfinfo_in.channels + ch] = 0.0f;  // Zero-pad for upsampling
+                out_buf[(i * 2 + 1) * sfinfo_in.channels + ch] = 0.0f;
             }
         }
         
-        // Step 2: Apply anti-aliasing filter and multi-band EQ
         for (sf_count_t i = 0; i < frames_read * 2; ++i) {
             for (int ch = 0; ch < sfinfo_in.channels; ++ch) {
                 float sample = out_buf[i * sfinfo_in.channels + ch];
-                sample = resamplers[ch].process(sample) * 2.0f;  // Anti-aliasing + gain compensation
-                sample = peqs[ch].process(sample);  // Apply multi-band EQ after upsampling
+                sample = resamplers[ch].process(sample) * 2.0f;
+                sample = peqs[ch].process(sample);
                 out_buf[i * sfinfo_in.channels + ch] = sample;
             }
         }
@@ -208,14 +242,13 @@ int main(int argc, char *argv[]) {
         sf_writef_float(outfile, out_buf.data(), frames_read * 2);
         total_frames += frames_read;
         
-        // Progress indicator
-        if (total_frames % (sfinfo_in.samplerate / 4) == 0) {
+        if (total_frames % (static_cast<sf_count_t>(sfinfo_in.samplerate) * 4) == 0) {
             std::cout << "." << std::flush;
         }
     }
     
     sf_close(infile); sf_close(outfile);
-    std::cout << std::endl << "Processing complete. Output: " << output_filename << std::endl;
+    std::cout << std::endl << "\nProcessing complete. Output: " << output_filename << std::endl;
     std::cout << "Total frames processed: " << total_frames << std::endl;
     return 0;
 }
