@@ -67,14 +67,9 @@ install(TARGETS enhanced_sound_processor DESTINATION bin)
 
 # サンプル設定ファイルのインストール
 install(FILES 
-    config_master.json
-    config_vocal.json
-    config_instrumental.json
-    config_podcast.json
+    params.json
     DESTINATION share/enhanced_sound_processor
 )
-
----
 
 # ./config_master.json
 {
